@@ -57,7 +57,6 @@ export default class InputNumber extends React.Component<InputNumberProps, Input
 
     const hasChanged = this.props.value !== value;
     if(this.isValid(value) && hasChanged) {
-      if (this.props.onChange) this.props.onChange(value);
       this.setState({
         value: value,
       });
@@ -194,6 +193,8 @@ export default class InputNumber extends React.Component<InputNumberProps, Input
             this.setState({editing: false, editingRange: false});
           }}
           onBlur={() => {
+            console.log(this.state);
+            this.props.onChange?.(this.state.value);
             this.setState({
               editing: false,
               editingRange: false,
@@ -216,11 +217,11 @@ export default class InputNumber extends React.Component<InputNumberProps, Input
             this.changeValue(e.target.value);
           }}
           onBlur={_e => {
+            console.log(this.state);
+            this.props.onChange?.(this.state.value);
             this.setState({editing: false});
-            this.resetValue();
           }}
           data-wd-key={this.props["data-wd-key"] + "-text"}
-
         />
       </div>;
     }
@@ -237,7 +238,10 @@ export default class InputNumber extends React.Component<InputNumberProps, Input
         onFocus={() => {
           this.setState({editing: true});
         }}
-        onBlur={this.resetValue}
+        onBlur={() => {
+          this.props.onChange?.(this.state.value);
+          this.resetValue();
+        }}
         required={this.props.required}
         data-wd-key={this.props["data-wd-key"]}
       />;
