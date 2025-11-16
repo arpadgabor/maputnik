@@ -1,7 +1,7 @@
-import React from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
 import Color from "color";
 import ChromePicker from "react-color/lib/components/chrome/Chrome";
-import {type ColorResult} from "react-color";
+import { type ColorResult } from "react-color";
 import lodash from "lodash";
 
 function formatColor(color: ColorResult): string {
@@ -10,41 +10,43 @@ function formatColor(color: ColorResult): string {
 }
 
 export type InputColorProps = {
-  onChange(...args: unknown[]): unknown
-  name?: string
-  value?: string
-  doc?: string
-  style?: object
-  default?: string
-  "aria-label"?: string
+  onChange(...args: unknown[]): unknown;
+  name?: string;
+  value?: string;
+  doc?: string;
+  style?: object;
+  default?: string;
+  "aria-label"?: string;
 };
 
-/*** Number fields with support for min, max and units and documentation*/
-export default class InputColor extends React.Component<InputColorProps> {
-  state = {
-    pickerOpened: false
-  };
-  colorInput: HTMLInputElement | null = null;
+export default function InputColor(props: InputColorProps) {
+  const [pickerOpened, setPickerOpened] = useState(false);
+  const colorInput = useRef<HTMLInputElement>(null);
 
-  constructor (props: InputColorProps) {
-    super(props);
-    this.onChangeNoCheck = lodash.throttle(this.onChangeNoCheck, 1000/30);
-  }
+  const [dirtyValue, setDirtyValue] = useState<string>(props.value || "rgb(255,255,255)");
 
-  onChangeNoCheck(v: string) {
-    this.props.onChange(v);
-  }
+  const onChangeNoCheck = useCallback(
+    lodash.debounce((v: string) => {
+      setDirtyValue(v);
+      props.onChange(v);
+    }, 500),
+    [props.onChange]
+  );
+  const updateValue = useCallback(
+    ((v: string) => {
+      setDirtyValue(v);
+      onChangeNoCheck(v);
+    }),
+    [onChangeNoCheck]
+  );
 
-  //TODO: I much rather would do this with absolute positioning
-  //but I am too stupid to get it to work together with fixed position
-  //and scrollbars so I have to fallback to JavaScript
-  calcPickerOffset = () => {
-    const elem = this.colorInput;
-    if(elem) {
+  const calcPickerOffset = () => {
+    const elem = colorInput.current;
+    if (elem) {
       const pos = elem.getBoundingClientRect();
       return {
-        top: pos.top,
-        left: pos.left + 196,
+        top: pos.top - 4,
+        left: pos.left + pos.width + 4,
       };
     } else {
       return {
@@ -54,51 +56,49 @@ export default class InputColor extends React.Component<InputColorProps> {
     }
   };
 
-  togglePicker = () => {
-    this.setState({ pickerOpened: !this.state.pickerOpened });
+  const togglePicker = () => {
+    setPickerOpened(!pickerOpened);
   };
 
-  get color() {
-    // Catch invalid color.
+  const getColor = () => {
     try {
-      return Color(this.props.value).rgb();
-    }
-    catch(err) {
+      return Color(dirtyValue).rgb();
+    } catch (err) {
       console.warn("Error parsing color: ", err);
       return Color("rgb(255,255,255)");
     }
-  }
+  };
 
-  onChange (v: string) {
-    this.props.onChange(v === "" ? undefined : v);
-  }
+  const onChange = (v: string) => {
+    props.onChange(v === "" ? undefined : v);
+  };
 
-  render() {
-    const offset = this.calcPickerOffset();
-    const currentColor = this.color.object();
-    const currentChromeColor = {
-      r: currentColor.r,
-      g: currentColor.g,
-      b: currentColor.b,
-      // Rename alpha -> a for ChromePicker
-      a: currentColor.alpha!
-    };
+  const offset = calcPickerOffset();
+  const currentColor = getColor().object();
+  const currentChromeColor = {
+    r: currentColor.r,
+    g: currentColor.g,
+    b: currentColor.b,
+    a: currentColor.alpha!,
+  };
 
-    const picker = <div
+  const picker = (
+    <div
       className="maputnik-color-picker-offset"
       style={{
         position: "fixed",
         zIndex: 1,
         left: offset.left,
         top: offset.top,
-      }}>
+      }}
+    >
       <ChromePicker
         color={currentChromeColor}
-        onChange={c => this.onChangeNoCheck(formatColor(c))}
+        onChange={c => updateValue(formatColor(c))}
       />
       <div
         className="maputnik-color-picker-offset"
-        onClick={this.togglePicker}
+        onClick={togglePicker}
         style={{
           zIndex: -1,
           position: "fixed",
@@ -108,28 +108,32 @@ export default class InputColor extends React.Component<InputColorProps> {
           left: "0px",
         }}
       />
-    </div>;
+    </div>
+  );
 
-    const swatchStyle = {
-      backgroundColor: this.props.value
-    };
+  const swatchStyle = {
+    backgroundColor: props.value,
+  };
 
-    return <div className="maputnik-color-wrapper">
-      {this.state.pickerOpened && picker}
+  return (
+    <div className="maputnik-color-wrapper">
+      {pickerOpened && picker}
+
       <div className="maputnik-color-swatch" style={swatchStyle}></div>
+
       <input
-        aria-label={this.props["aria-label"]}
+        aria-label={props["aria-label"]}
         spellCheck="false"
         autoComplete="off"
         className="maputnik-color"
-        ref={(input) => {this.colorInput = input;}}
-        onClick={this.togglePicker}
-        style={this.props.style}
-        name={this.props.name}
-        placeholder={this.props.default}
-        value={this.props.value ? this.props.value : ""}
-        onChange={(e) => this.onChange(e.target.value)}
+        ref={colorInput}
+        onClick={togglePicker}
+        style={props.style}
+        name={props.name}
+        placeholder={props.default}
+        value={props.value ? props.value : ""}
+        onChange={(e) => onChange(e.target.value)}
       />
-    </div>;
-  }
+    </div>
+  );
 }
