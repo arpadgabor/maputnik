@@ -82,7 +82,7 @@ class InputJsonInternal extends React.Component<InputJsonInternalProps, InputJso
           insert: this.getPrettyJson(this.props.value)
         },
         selection: currentSelection,
-        scrollIntoView: true
+        scrollIntoView: false
       });
     }
   }
